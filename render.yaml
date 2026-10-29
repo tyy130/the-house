@@ -2,6 +2,7 @@ services:
   - type: web
     name: the-house-demo
     runtime: python
+    plan: free
     buildCommand: ""
     startCommand: python3 server.py
     envVars:
