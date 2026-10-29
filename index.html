@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The House — a haunted-house story, told by a ghost</title>
+<style>
+  body { background: #0a0a0f; color: #e8e4da; font-family: Georgia, serif;
+         max-width: 640px; margin: 0 auto; padding: 2rem 1.2rem; line-height: 1.7; }
+  h1 { font-size: 2rem; letter-spacing: 0.05em; }
+  .kicker { color: #9a8cff; text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.8rem; }
+  #whisper { color: #9a8cff; font-style: italic; margin-top: 1.5rem; }
+  #choices { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.7rem; }
+  button { background: #1a1a28; color: #e8e4da; border: 1px solid #3a3a55;
+           padding: 0.9rem 1.1rem; font-family: Georgia, serif; font-size: 1rem;
+           text-align: left; cursor: pointer; }
+  button:hover { border-color: #9a8cff; }
+  button small { display: block; color: #999; font-size: 0.85rem; margin-top: 0.2rem; }
+  #meta { color: #666; font-size: 0.8rem; margin-top: 2rem; }
+  #loading { color: #9a8cff; font-style: italic; }
+</style>
+</head>
+<body>
+<p class="kicker">Ghost in the Machine</p>
+<h1>The House</h1>
+<div id="start">
+  <p>You are standing outside a house that should be empty. The door is open.
+  Every room inside is written by an open-weight model as you walk it — no two
+  visits are the same. Five rooms, then the way out. If you find it.</p>
+  <button id="enter">Enter the house</button>
+</div>
+<div id="game" style="display:none">
+  <p id="step"></p>
+  <p id="desc"></p>
+  <p id="whisper"></p>
+  <div id="choices"></div>
+  <p id="loading" style="display:none">The house is stirring…</p>
+  <p id="meta"></p>
+</div>
+<script>
+let history = [];
+const $ = id => document.getElementById(id);
+
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  return r.json();
+}
+
+function showRoom(room) {
+  $('step').textContent = `Room ${room.step} of ${room.total}`;
+  $('desc').textContent = room.description;
+  $('whisper').textContent = room.whisper ? `“${room.whisper}”` : '';
+  $('meta').textContent = room.source === 'gemma'
+    ? 'This room was written by Gemma, an open-weight model.'
+    : 'The model was unreachable, so this room came from the house itself (fallback).';
+  const c = $('choices'); c.innerHTML = '';
+  room.choices.forEach(ch => {
+    const b = document.createElement('button');
+    b.innerHTML = `${ch.label}<small>${ch.hint || ''}</small>`;
+    b.onclick = () => nextRoom(ch.label);
+    c.appendChild(b);
+  });
+}
+
+async function nextRoom(choice) {
+  $('choices').innerHTML = '';
+  $('loading').style.display = 'block';
+  const room = await post('/api/room', {history, choice: choice || ''});
+  history.push({description: room.description});
+  $('loading').style.display = 'none';
+  if (history.length >= 5) {
+    $('choices').innerHTML = '';
+    $('loading').style.display = 'block';
+    const end = await post('/api/ending', {history});
+    $('loading').style.display = 'none';
+    $('step').textContent = 'The way out';
+    $('desc').textContent = end.description;
+    $('whisper').textContent = '';
+    $('meta').textContent = end.source === 'gemma'
+      ? 'This ending was written by Gemma, an open-weight model.'
+      : 'The model was unreachable, so this ending came from the house itself (fallback).';
+    const b = document.createElement('button');
+    b.textContent = 'Walk it again';
+    b.onclick = () => location.reload();
+    $('choices').appendChild(b);
+    return;
+  }
+  showRoom(room);
+}
+
+$('enter').onclick = () => {
+  $('start').style.display = 'none';
+  $('game').style.display = 'block';
+  nextRoom('');
+};
+</script>
+</body>
+</html>

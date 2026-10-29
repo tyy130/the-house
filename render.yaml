@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: the-house-demo
+    runtime: python
+    buildCommand: ""
+    startCommand: python3 server.py
+    envVars:
+      - key: OPENROUTER_MODEL
+        value: google/gemma-3-12b-it
+      - key: OPENROUTER_API_KEY
+        sync: false
